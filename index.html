@@ -1,0 +1,303 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+  <title>Claude Code</title>
+  <link rel="manifest" href="manifest.json" />
+  <meta name="theme-color" content="#CC785C" />
+  <meta name="apple-mobile-web-app-capable" content="yes" />
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
+  <meta name="apple-mobile-web-app-title" content="Claude Code" />
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+    :root {
+      --coral: #CC785C;
+      --coral-dark: #a85c42;
+      --bg: #0f0f0f;
+      --bg2: #1a1a1a;
+      --bg3: #222222;
+      --text: #f0ede8;
+      --muted: #888;
+      --border: rgba(255,255,255,0.08);
+      --border2: rgba(255,255,255,0.14);
+      --radius: 10px;
+      --radius-lg: 16px;
+      --mono: 'Courier New', monospace;
+    }
+    html, body { height: 100%; background: var(--bg); color: var(--text); font-family: -apple-system, BlinkMacSystemFont, 'SF Pro Text', sans-serif; -webkit-font-smoothing: antialiased; overflow: hidden; }
+    .app { display: flex; flex-direction: column; height: 100dvh; padding-top: env(safe-area-inset-top,0px); padding-bottom: env(safe-area-inset-bottom,0px); }
+
+    .topbar { display: flex; align-items: center; gap: 10px; padding: 12px 16px; border-bottom: 0.5px solid var(--border); background: var(--bg); flex-shrink: 0; }
+    .logo { width: 30px; height: 30px; flex-shrink: 0; }
+    .topbar-title { font-size: 16px; font-weight: 600; color: var(--text); flex: 1; letter-spacing: -0.3px; }
+    .model-badge { font-size: 11px; padding: 3px 9px; border-radius: 20px; background: var(--bg2); color: var(--muted); border: 0.5px solid var(--border2); max-width: 140px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+
+    .setup-panel { flex: 1; display: flex; flex-direction: column; justify-content: center; align-items: center; padding: 32px 24px; gap: 18px; overflow-y: auto; }
+    .setup-icon { width: 72px; height: 72px; }
+    .setup-title { font-size: 22px; font-weight: 700; color: var(--text); letter-spacing: -0.5px; }
+    .setup-sub { font-size: 14px; color: var(--muted); text-align: center; line-height: 1.6; max-width: 280px; }
+    .field-group { width: 100%; display: flex; flex-direction: column; gap: 6px; }
+    .field-label { font-size: 12px; color: var(--muted); letter-spacing: 0.3px; }
+    .field-input, .field-select { width: 100%; height: 44px; padding: 0 14px; border-radius: var(--radius); border: 0.5px solid var(--border2); background: var(--bg2); color: var(--text); font-size: 14px; font-family: inherit; -webkit-appearance: none; }
+    .field-input:focus, .field-select:focus { outline: none; border-color: var(--coral); }
+    .field-input::placeholder { color: var(--muted); }
+    .btn-connect { width: 100%; height: 48px; border-radius: var(--radius-lg); border: none; background: var(--coral); color: white; font-size: 15px; font-weight: 600; cursor: pointer; letter-spacing: -0.2px; }
+    .btn-connect:active { background: var(--coral-dark); }
+
+    .messages { flex: 1; overflow-y: auto; padding: 16px; display: flex; flex-direction: column; gap: 14px; -webkit-overflow-scrolling: touch; }
+    .msg { display: flex; gap: 8px; align-items: flex-end; }
+    .msg.user { flex-direction: row-reverse; }
+    .avatar { width: 28px; height: 28px; border-radius: 50%; flex-shrink: 0; display: flex; align-items: center; justify-content: center; font-size: 10px; font-weight: 600; }
+    .av-ai { background: var(--coral); }
+    .av-user { background: var(--bg3); color: var(--muted); border: 0.5px solid var(--border2); }
+    .bubble { max-width: 82%; padding: 11px 14px; border-radius: var(--radius-lg); font-size: 15px; line-height: 1.55; word-break: break-word; }
+    .msg.assistant .bubble { background: var(--bg2); color: var(--text); border: 0.5px solid var(--border); border-bottom-left-radius: 4px; }
+    .msg.user .bubble { background: var(--coral); color: white; border-bottom-right-radius: 4px; }
+
+    .code-block { margin: 8px 0; border-radius: var(--radius); overflow: hidden; border: 0.5px solid var(--border2); }
+    .code-header { display: flex; align-items: center; justify-content: space-between; padding: 7px 12px; background: var(--bg3); border-bottom: 0.5px solid var(--border); }
+    .code-lang { font-size: 11px; color: var(--coral); font-family: var(--mono); font-weight: 600; text-transform: uppercase; letter-spacing: 0.5px; }
+    .btn-dl { font-size: 12px; padding: 4px 10px; border-radius: 8px; border: 0.5px solid var(--border2); background: var(--bg2); color: var(--text); cursor: pointer; }
+    .btn-dl:active { background: var(--border2); }
+    .code-pre { padding: 12px; font-size: 13px; font-family: var(--mono); overflow-x: auto; background: #0a0a0a; color: #e8e8e8; white-space: pre; line-height: 1.55; }
+
+    .typing { display: flex; gap: 5px; align-items: center; padding: 4px 2px; }
+    .typing span { width: 7px; height: 7px; border-radius: 50%; background: var(--muted); animation: bounce 1.2s infinite; }
+    .typing span:nth-child(2) { animation-delay: 0.2s; }
+    .typing span:nth-child(3) { animation-delay: 0.4s; }
+    @keyframes bounce { 0%,60%,100%{transform:translateY(0)} 30%{transform:translateY(-6px)} }
+
+    .input-area { padding: 10px 14px 12px; border-top: 0.5px solid var(--border); background: var(--bg); display: flex; gap: 10px; align-items: flex-end; flex-shrink: 0; }
+    .chat-input { flex: 1; min-height: 40px; max-height: 130px; padding: 10px 14px; border-radius: 20px; border: 0.5px solid var(--border2); background: var(--bg2); color: var(--text); font-size: 15px; font-family: inherit; resize: none; line-height: 1.4; -webkit-appearance: none; }
+    .chat-input:focus { outline: none; border-color: var(--coral); }
+    .chat-input::placeholder { color: var(--muted); }
+    .btn-send { width: 40px; height: 40px; border-radius: 50%; border: none; background: var(--coral); cursor: pointer; display: flex; align-items: center; justify-content: center; flex-shrink: 0; }
+    .btn-send:active { background: var(--coral-dark); transform: scale(0.94); }
+    .btn-send:disabled { opacity: 0.35; cursor: default; }
+    .status-bar { font-size: 11px; color: var(--muted); padding: 0 16px 4px; flex-shrink: 0; text-align: center; }
+    .hidden { display: none !important; }
+  </style>
+</head>
+<body>
+<div class="app">
+
+  <div class="topbar">
+    <svg class="logo" viewBox="0 0 100 100" fill="none" xmlns="http://www.w3.org/2000/svg">
+      <rect width="100" height="100" rx="22" fill="#CC785C"/>
+      <g transform="translate(18,16)">
+        <path d="M32 8C18 8 8 20 8 34C8 42 12 49 18 54L16 64L26 58C28 59 30 59 32 59C46 59 56 47 56 33C56 19 46 8 32 8Z" fill="white" opacity="0.95"/>
+        <circle cx="24" cy="32" r="4" fill="#CC785C"/>
+        <circle cx="40" cy="32" r="4" fill="#CC785C"/>
+        <path d="M22 42 Q32 50 42 42" stroke="#CC785C" stroke-width="3" stroke-linecap="round" fill="none"/>
+      </g>
+    </svg>
+    <span class="topbar-title">Claude Code</span>
+    <span class="model-badge" id="model-label">not connected</span>
+  </div>
+
+  <div class="setup-panel" id="setup">
+    <svg class="setup-icon" viewBox="0 0 100 100" fill="none" xmlns="http://www.w3.org/2000/svg">
+      <rect width="100" height="100" rx="22" fill="#CC785C"/>
+      <g transform="translate(18,16)">
+        <path d="M32 8C18 8 8 20 8 34C8 42 12 49 18 54L16 64L26 58C28 59 30 59 32 59C46 59 56 47 56 33C56 19 46 8 32 8Z" fill="white" opacity="0.95"/>
+        <circle cx="24" cy="32" r="4" fill="#CC785C"/>
+        <circle cx="40" cy="32" r="4" fill="#CC785C"/>
+        <path d="M22 42 Q32 50 42 42" stroke="#CC785C" stroke-width="3" stroke-linecap="round" fill="none"/>
+      </g>
+    </svg>
+    <div class="setup-title">Claude Code</div>
+    <div class="setup-sub">Your AI coding assistant. 10+ free models available — no credits needed. Connect your OpenRouter key to get started.</div>
+    <div class="field-group">
+      <div class="field-label">Model</div>
+      <select class="field-select" id="model-picker">
+        <optgroup label="── 🆓 Free · Best Picks ──">
+          <option value="qwen/qwen3-coder-480b-a35b-instruct:free">🆓 Qwen3 Coder 480B ★ best free coding</option>
+          <option value="deepseek/deepseek-r1:free">🆓 DeepSeek R1 — reasoning</option>
+          <option value="meta-llama/llama-3.3-70b-instruct:free">🆓 Llama 3.3 70B — all-around</option>
+          <option value="openrouter/auto">🆓 openrouter/free — auto-router</option>
+        </optgroup>
+        <optgroup label="── 🆓 Free · Gemma (Google) ──">
+          <option value="google/gemma-4-31b-it:free">🆓 Gemma 4 31B — multimodal</option>
+          <option value="google/gemma-3-27b-it:free">🆓 Gemma 3 27B</option>
+          <option value="google/gemma-3-12b-it:free">🆓 Gemma 3 12B — fast</option>
+          <option value="google/gemma-3n-e4b-it:free">🆓 Gemma 3n E4B — efficient</option>
+        </optgroup>
+        <optgroup label="── 🆓 Free · Mistral ──">
+          <option value="mistralai/mistral-small-3.1-24b-instruct:free">🆓 Mistral Small 3.1 24B</option>
+          <option value="mistralai/mistral-7b-instruct:free">🆓 Mistral 7B — lightweight</option>
+        </optgroup>
+        <optgroup label="── 🆓 Free · NVIDIA Nemotron ──">
+          <option value="nvidia/llama-3.1-nemotron-70b-instruct:free">🆓 Nemotron 70B</option>
+          <option value="nvidia/nemotron-3-super-120b-a12b:free">🆓 Nemotron 3 Super 120B — 262K ctx</option>
+        </optgroup>
+        <optgroup label="── Anthropic (paid) ──">
+          <option value="anthropic/claude-sonnet-4-5">Claude Sonnet 4.5 ✦ recommended</option>
+          <option value="anthropic/claude-3-haiku">Claude 3 Haiku — fast &amp; cheap</option>
+          <option value="anthropic/claude-opus-4">Claude Opus 4 — most powerful</option>
+        </optgroup>
+        <optgroup label="── Qwen Coder (paid) ──">
+          <option value="qwen/qwen-2.5-coder-32b-instruct">Qwen 2.5 Coder 32B</option>
+          <option value="qwen/qwq-32b">QwQ 32B — reasoning</option>
+        </optgroup>
+        <optgroup label="── OpenAI (paid) ──">
+          <option value="openai/gpt-4o">GPT-4o</option>
+          <option value="openai/gpt-4o-mini">GPT-4o Mini</option>
+        </optgroup>
+        <optgroup label="── Other (paid) ──">
+          <option value="google/gemini-2.0-flash-001">Gemini 2.0 Flash</option>
+          <option value="deepseek/deepseek-chat">DeepSeek V3</option>
+        </optgroup>
+      </select>
+    </div>
+    <div class="field-group">
+      <div class="field-label">OpenRouter API Key</div>
+      <input class="field-input" id="api-key-input" type="password" placeholder="sk-or-..." autocomplete="off" />
+    </div>
+    <button class="btn-connect" onclick="connect()">Connect</button>
+  </div>
+
+  <div class="messages hidden" id="messages"></div>
+  <div class="status-bar hidden" id="status-bar"></div>
+  <div class="input-area hidden" id="input-area">
+    <textarea class="chat-input" id="chat-input" placeholder="Ask me to write code…" rows="1"></textarea>
+    <button class="btn-send" id="send-btn" onclick="sendMessage()">
+      <svg width="18" height="18" viewBox="0 0 24 24" fill="white"><path d="M2.01 21L23 12 2.01 3 2 10l15 2-15 2z"/></svg>
+    </button>
+  </div>
+</div>
+
+<script>
+let apiKey = '', model = '', history = [], isLoading = false;
+
+if ('serviceWorker' in navigator) {
+  navigator.serviceWorker.register('./sw.js').catch(() => {});
+}
+
+function connect() {
+  const key = document.getElementById('api-key-input').value.trim();
+  const m = document.getElementById('model-picker').value;
+  if (!key) { alert('Please enter your OpenRouter API key.'); return; }
+  apiKey = key; model = m;
+  const isFree = m.endsWith(':free') || m === 'openrouter/auto';
+  const shortName = (m.split('/')[1] || m).replace(':free','');
+  document.getElementById('model-label').textContent = (isFree ? '🆓 ' : '') + shortName;
+  document.getElementById('setup').classList.add('hidden');
+  document.getElementById('messages').classList.remove('hidden');
+  document.getElementById('input-area').classList.remove('hidden');
+  document.getElementById('status-bar').classList.remove('hidden');
+  addMessage('assistant', "Hey! I'm Claude Code 👋 Ask me to write any code — Python scripts, HTML pages, JavaScript apps, you name it. Every code block gets a download button so you can save the file.\n\n🆓 **Free models available:** Qwen3 Coder 480B (best free coding), DeepSeek R1, Llama 3.3 70B, Gemma 4/3 models, Mistral models, NVIDIA Nemotron, and the openrouter/free auto-router — all with no credits needed!");
+}
+
+function addMessage(role, content) {
+  const msgs = document.getElementById('messages');
+  const isUser = role === 'user';
+  const div = document.createElement('div');
+  div.className = 'msg ' + role;
+  const av = document.createElement('div');
+  av.className = 'avatar ' + (isUser ? 'av-user' : 'av-ai');
+  if (!isUser) {
+    av.innerHTML = `<svg width="16" height="16" viewBox="0 0 100 100" fill="none"><g transform="translate(20,14)"><path d="M30 6C17 6 6 18 6 32C6 40 10 47 16 52L14 62L24 56C26 57 28 58 30 58C43 58 54 46 54 32C54 18 43 6 30 6Z" fill="white" opacity="0.9"/><circle cx="22" cy="31" r="4" fill="#CC785C"/><circle cx="38" cy="31" r="4" fill="#CC785C"/><path d="M20 41 Q30 49 40 41" stroke="#CC785C" stroke-width="2.5" stroke-linecap="round" fill="none"/></g></svg>`;
+  } else { av.textContent = 'You'; }
+  const bubble = document.createElement('div');
+  bubble.className = 'bubble';
+  bubble.innerHTML = role === 'assistant' ? renderContent(content) : escHtml(content);
+  div.appendChild(av); div.appendChild(bubble);
+  msgs.appendChild(div);
+  msgs.scrollTop = msgs.scrollHeight;
+}
+
+function renderContent(text) {
+  const re = /```(\w*)\n?([\s\S]*?)```/g;
+  let result = '', lastIndex = 0, match, count = 0;
+  while ((match = re.exec(text)) !== null) {
+    const before = text.slice(lastIndex, match.index).trim();
+    if (before) result += `<p style="white-space:pre-wrap;margin-bottom:8px">${escHtml(before)}</p>`;
+    const lang = match[1] || 'txt', code = match[2];
+    count++;
+    const id = 'c_' + Date.now() + '_' + count;
+    window['__code_' + id] = { code, lang };
+    result += `<div class="code-block"><div class="code-header"><span class="code-lang">${escHtml(lang)}</span><button class="btn-dl" onclick="downloadCode('${id}')">&#8595; Save file</button></div><pre class="code-pre">${escHtml(code)}</pre></div>`;
+    lastIndex = match.index + match[0].length;
+  }
+  const after = text.slice(lastIndex).trim();
+  if (after) result += `<p style="white-space:pre-wrap;margin-top:8px">${escHtml(after)}</p>`;
+  if (!result) result = `<p style="white-space:pre-wrap">${escHtml(text)}</p>`;
+  return result;
+}
+
+function escHtml(s) {
+  return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
+}
+
+function downloadCode(id) {
+  const { code, lang } = window['__code_' + id];
+  const extMap = { python:'py',py:'py',javascript:'js',js:'js',typescript:'ts',ts:'ts',html:'html',css:'css',bash:'sh',shell:'sh',sh:'sh',json:'json',sql:'sql',java:'java',cpp:'cpp',c:'c',go:'go',rust:'rs',ruby:'rb',php:'php',swift:'swift',kotlin:'kt',yaml:'yaml',yml:'yaml',xml:'xml',markdown:'md',md:'md' };
+  const ext = extMap[lang.toLowerCase()] || 'txt';
+  const blob = new Blob([code], { type: 'text/plain' });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = url; a.download = 'code.' + ext;
+  document.body.appendChild(a); a.click();
+  document.body.removeChild(a); URL.revokeObjectURL(url);
+}
+
+function showTyping() {
+  const msgs = document.getElementById('messages');
+  const div = document.createElement('div');
+  div.className = 'msg assistant'; div.id = 'typing-bubble';
+  div.innerHTML = `<div class="avatar av-ai"><svg width="16" height="16" viewBox="0 0 100 100" fill="none"><g transform="translate(20,14)"><path d="M30 6C17 6 6 18 6 32C6 40 10 47 16 52L14 62L24 56C26 57 28 58 30 58C43 58 54 46 54 32C54 18 43 6 30 6Z" fill="white" opacity="0.9"/><circle cx="22" cy="31" r="4" fill="#CC785C"/><circle cx="38" cy="31" r="4" fill="#CC785C"/><path d="M20 41 Q30 49 40 41" stroke="#CC785C" stroke-width="2.5" stroke-linecap="round" fill="none"/></g></svg></div><div class="bubble"><div class="typing"><span></span><span></span><span></span></div></div>`;
+  msgs.appendChild(div); msgs.scrollTop = msgs.scrollHeight;
+}
+
+function hideTyping() { const t = document.getElementById('typing-bubble'); if (t) t.remove(); }
+function setStatus(txt) { document.getElementById('status-bar').textContent = txt; }
+
+async function sendMessage() {
+  if (isLoading) return;
+  const input = document.getElementById('chat-input');
+  const text = input.value.trim();
+  if (!text) return;
+  input.value = ''; autoResize();
+  isLoading = true;
+  document.getElementById('send-btn').disabled = true;
+  addMessage('user', text);
+  history.push({ role: 'user', content: text });
+  showTyping(); setStatus('Thinking…');
+  try {
+    const res = await fetch('https://openrouter.ai/api/v1/chat/completions', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', 'Authorization': 'Bearer ' + apiKey, 'HTTP-Referer': 'https://claude.ai', 'X-Title': 'Claude Code' },
+      body: JSON.stringify({ model, messages: [{ role: 'system', content: 'You are Claude Code, an expert AI coding assistant. Always wrap code in fenced code blocks with the correct language tag (e.g. ```python). Write clean, commented, production-ready code. After each block briefly explain what it does.' }, ...history] })
+    });
+    const data = await res.json();
+    if (data.error) throw new Error(data.error.message || 'API error');
+    const reply = data.choices[0].message.content;
+    history.push({ role: 'assistant', content: reply });
+    hideTyping(); addMessage('assistant', reply);
+    const turns = history.filter(m => m.role === 'user').length;
+    const isFreeModel = model.endsWith(':free') || model === 'openrouter/auto';
+    const displayName = (model.split('/')[1] || model).replace(':free','');
+    setStatus((isFreeModel ? '🆓 ' : '') + displayName + ' · ' + turns + ' message' + (turns !== 1 ? 's' : ''));
+  } catch (e) {
+    hideTyping();
+    addMessage('assistant', '⚠️ ' + e.message + '\n\nDouble-check your API key and try again.');
+    setStatus('Error');
+  }
+  isLoading = false;
+  document.getElementById('send-btn').disabled = false;
+}
+
+function autoResize() {
+  const ta = document.getElementById('chat-input');
+  if (!ta) return;
+  ta.style.height = 'auto';
+  ta.style.height = Math.min(ta.scrollHeight, 130) + 'px';
+}
+
+document.getElementById('chat-input').addEventListener('input', autoResize);
+document.getElementById('chat-input').addEventListener('keydown', e => { if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); sendMessage(); } });
+document.getElementById('api-key-input').addEventListener('keydown', e => { if (e.key === 'Enter') connect(); });
+</script>
+</body>
+</html>
